@@ -2,30 +2,47 @@ pipeline {
     agent any
 
     environment {
-        AWS_DEFAULT_REGION = 'us-east-1'
-        AWS_ACCESS_KEY_ID = credentials('aws-access-key')
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+        AWS_REGION = 'us-east-1'
     }
 
     stages {
-        stage('Checkout') {
+        stage('Setup AWS Credentials') {
             steps {
-                git 'https://github.com/LearnerDevansh/flask-Jenkins-EKS'
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+                    sh 'aws sts get-caller-identity'
+                    // Optionally validate cluster access
+                    sh 'kubectl get nodes'
+                }
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Checkout') {
             steps {
-                sh 'docker build -t flask-app .'
-                sh 'docker tag flask-app devanshpandey21/flask-app:latest'
-                sh 'docker push yourdockerhub/flask-app:latest'
+                git branch: 'main', url: 'https://github.com/LearnerDevansh/flask-Jenkins-EKS'
+            }
+        }
+
+        stage('Build and Push Docker Image') {
+            steps {
+                script {
+                    dockerImage = docker.build("devanshpandey21/flask-app:latest")
+                }
+
+                withCredentials([usernamePassword(credentialsId: 'docker_hub_credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push devanshpandey21/flask-app:latest
+                    '''
+                }
             }
         }
 
         stage('Deploy to EKS') {
             steps {
-                sh 'kubectl apply -f k8s-manifests/deployment.yaml'
-                sh 'kubectl apply -f k8s-manifests/service.yaml'
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+                    sh 'kubectl apply -f k8s-manifests/deployment.yaml'
+                    sh 'kubectl apply -f k8s-manifests/service.yaml'
+                }
             }
         }
     }

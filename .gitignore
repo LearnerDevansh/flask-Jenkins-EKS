@@ -1,0 +1,14 @@
+# Python stuff
+*.pyc
+__pycache__/
+
+# AWS & eksctl archives or installs
+awscliv2.zip
+aws/
+eksctl
+
+# Logs and editor files
+*.log
+.vscode/
+.idea/
+.env

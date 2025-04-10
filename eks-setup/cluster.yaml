@@ -1,0 +1,16 @@
+#eks setup
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: flask-ci-cd-cluster
+  region: us-east-1
+
+nodeGroups:
+- name: ng-flask
+  instanceType: t3.medium
+  desiredCapacity: 2
+  ssh:
+    allow: true
+    publicKeyName: lerelundke
+    
